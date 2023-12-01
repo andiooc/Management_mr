@@ -23,12 +23,13 @@ def main():
                                      port=port,
                                      user=user,
                                      password=password,
-                                     database='jt_hq_data')  # 请替换为您的数据库名称
+                                     database='jt_hq_data')
         print("数据库连接成功！")
-        # 这里可以添加更多操作，例如查询、插入等
 
         # 关闭连接
         connection.close()
+
+        # 获取数据（调用模块get_data）
         df = get_data.getdata(password)
         print(df)
 
