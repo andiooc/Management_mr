@@ -2,6 +2,8 @@ import pymysql
 from configparser import ConfigParser
 import sys
 import get_data
+import report_pivot
+import output
 
 # 开始程序
 def main():
@@ -30,8 +32,17 @@ def main():
         connection.close()
 
         # 获取数据（调用模块get_data）
-        df = get_data.getdata(password)
-        print(df)
+        df_dict = get_data.getdata(password)
+        if df_dict['maindf'] is None:
+            print("未获取到数据，请检查原因")
+            exit()
+        final_df = report_pivot.reportpivot(df_dict)
+
+
+
+        output.txtoutput(final_df)
+
+
 
     except pymysql.MySQLError as e:
         print("数据库连接失败，请检查连接")

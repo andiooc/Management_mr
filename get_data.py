@@ -5,7 +5,31 @@ from sqlalchemy import create_engine
 # 读取配置文件
 def getdata(sqlpassword):
     # 保护性赋值
-    factdata = main_dimension = m_d_lan_cn = m_d_lan_en = org_dimension = None
+    sql_query = dimension_query = pivot_col = pivot_row = filter_col = None
+    # 输入日期范围
+    lower_date_input = str(input("请输入起始日期（YYYY-MM）或输入N: ") )+ '-01'
+    if lower_date_input.lower() == "n":
+        lower_date = ""
+    else:
+        lower_date = f" and mr_period >= '{lower_date_input}'"
+
+    upper_date_input = str(input("请输入结束日期（YYYY-MM）或输入N: ")) + '-01'
+    if upper_date_input.lower() == "n":
+        upper_date = ""
+    else:
+        upper_date = f" and mr_period <= '{upper_date_input}'"
+
+    # 输入选择的国家
+    countryselect_input = input("请输入选择的国家或输入N: ")
+    if countryselect_input.lower() == "n":
+        countryselect = ""
+    else:
+        countryselect = f" and db_nation_shortname = '{countryselect_input}'"
+
+    pivot_input = str(input("聚合维度方式：1.列为月份，sheet为国家；2.列为国家，sheet为月份 "))
+    if pivot_input not in ("1","2"):
+        pivot_input ="1"
+
 
 
     report_config = configparser.ConfigParser()
@@ -33,12 +57,16 @@ def getdata(sqlpassword):
     section_found = False
     for section in report_config.sections():
         if report_config[section]['name'] == user_input:
-            factdata = report_config[section]['factdata']
-            main_dimension = report_config[section]['main_dimension']
-            m_d_lan_cn = report_config[section]['m_d_lan_cn']
-            m_d_lan_en = report_config[section]['m_d_lan_en']
-            org_dimension = report_config[section]['org_dimension']
+            sql_query = report_config[section]['readsql_select'] + f""" where '管报ID' is not null {lower_date} {upper_date} {countryselect} """ + report_config[section]['readsql_groupby']
+            dimension_query = report_config[section]['r_dimension']
+            pivot_col = report_config[section]['pivot_col'+pivot_input]
+            pivot_row = report_config[section]['pivot_row' + pivot_input]
+            filter_col = report_config[section]['filter_col'+pivot_input]
+            d_ID = report_config[section]['f_item_ID']
+            d_PID = report_config[section]['f_item_PID']
+
             section_found = True
+
             break
 
     if not section_found:
@@ -60,12 +88,20 @@ def getdata(sqlpassword):
             f"mysql+pymysql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}")
 
         # 构建SQL查询
-        sql_query = f"SELECT * FROM {factdata} "
+
 
         # 使用pandas的read_sql方法读取数据
         df = pd.read_sql(sql_query, con=engine)
+        dimension_df = pd.read_sql(dimension_query,con=engine)
     except Exception as e:
         print(f"数据库查询失败: {e}")
         return None
+    df_dict = {
+        'maindf':df,
+        'dimensiondf':dimension_df,
+        'pivot_col':pivot_col,
+        'pivot_row':pivot_row,
+        'filter_col':filter_col
+    }
 
-    return df
+    return df_dict
