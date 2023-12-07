@@ -38,11 +38,7 @@ def main():
             exit()
         final_df = report_pivot.reportpivot(df_dict)
 
-
-
         output.txtoutput(final_df)
-
-
 
     except pymysql.MySQLError as e:
         print("数据库连接失败，请检查连接")
