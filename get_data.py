@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 # 读取配置文件
 def getdata(sqlpassword):
     # 保护性赋值
-    sql_query = dimension_query = pivot_col = pivot_row = filter_col = None
+    sql_query = dimension_query = pivot_col = pivot_row = filter_col = d_ID = d_PID = f_value = None
     # 输入日期范围
     lower_date_input = str(input("请输入起始日期（YYYY-MM）或输入N: ") )+ '-01'
     if lower_date_input.lower() == "n":
@@ -64,7 +64,7 @@ def getdata(sqlpassword):
             filter_col = report_config[section]['filter_col'+pivot_input]
             d_ID = report_config[section]['f_item_ID']
             d_PID = report_config[section]['f_item_PID']
-
+            f_value = report_config[section]['f_value']
             section_found = True
 
             break
@@ -101,7 +101,11 @@ def getdata(sqlpassword):
         'dimensiondf':dimension_df,
         'pivot_col':pivot_col,
         'pivot_row':pivot_row,
-        'filter_col':filter_col
+        'filter_col':filter_col,
+        'itemID':d_ID,
+        'PitemID':d_PID,
+        'df_value':f_value
+
     }
 
     return df_dict

@@ -10,24 +10,31 @@ def calculate_mr_level(row):
 def reportpivot(df_dict):
     maindf = df_dict['maindf']
     dimensiondf = df_dict['dimensiondf']
-    pivot_table=maindf.pivot_table(index=['管报ID', '父ID'], columns='国家名称', values='值', aggfunc='sum', fill_value=0).reset_index()
-    pivot_table['mr_level'] = pivot_table.apply(calculate_mr_level, axis=1)
+    itemID = df_dict['itemID']
+    PitemID = df_dict['PitemID']
+    col_pivot = df_dict['pivot_col']
+    row_pivot = df_dict['pivot_row']
+    col_filter = df_dict['filter_col']
+    sheet_filter = maindf[col_filter].drop_duplicates().values.tolist()
 
-    max_level = int(pivot_table['mr_level'].max())
-    for i in range(max_level,0,-1):
-        select_rows = pivot_table[pivot_table['mr_level'] == i]
-        agg_data = select_rows.groupby('父ID').sum().reset_index().drop('管报ID', axis=1)
-        agg_data.rename(columns={'父ID': '管报ID'}, inplace = True)
-        agg_data['父ID'] = agg_data['管报ID'].str[:-2]
-        agg_data['mr_level'] = i-1
-        agg_data.reset_index(inplace=True)
-        agg_data = agg_data[pivot_table.columns]
-        pivot_table = pd.concat([pivot_table,agg_data], ignore_index= True)
-        print("当前的i等级：" + str(i) +"………………………………………………………………")
-        print(pivot_table[pivot_table['mr_level'] == 4.00])
+    for sheetfilter in sheet_filter:
+        filter_maindf = maindf.loc[maindf[col_filter].str.contains(sheetfilter)]
+        pivot_table=filter_maindf.pivot_table(index=[itemID, PitemID], columns=col_pivot, values='值', aggfunc='sum', fill_value=0).reset_index()
+        pivot_table['mr_level'] = pivot_table.apply(calculate_mr_level, axis=1)
+
+        max_level = int(pivot_table['mr_level'].max())
+        for i in range(max_level,0,-1):
+            select_rows = pivot_table[pivot_table['mr_level'] == i]
+            agg_data = select_rows.groupby('父ID').sum().reset_index().drop('管报ID', axis=1)
+            agg_data.rename(columns={'父ID': '管报ID'}, inplace = True)
+            agg_data['父ID'] = agg_data['管报ID'].str[:-2]
+            agg_data['mr_level'] = i-1
+            agg_data.reset_index(inplace=True)
+            agg_data = agg_data[pivot_table.columns]
+            pivot_table = pd.concat([pivot_table,agg_data], ignore_index= True)
 
 
-    final_df = pd.merge(dimensiondf, pivot_table, left_on='mr_code', right_on='管报ID', how='left').fillna(0)
+        final_df = pd.merge(dimensiondf, pivot_table, left_on='mr_code', right_on='管报ID', how='left').fillna(0)
 
     # for index, row in final_df.iterrows():
     #     if row['mr_level'] == max_level - 1:
@@ -37,5 +44,5 @@ def reportpivot(df_dict):
     #         final_df.loc[index, numeric_subset.columns] = parent_sum
 
 
-    return final_df
+        return final_df
 
