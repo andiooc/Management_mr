@@ -1,48 +1,52 @@
 import pandas as pd
-# import output
-def calculate_mr_level(row):
-    report_id = row['管报ID']  # 获取行索引中的 '管报ID' 值
+
+
+def calculate_mr_level(report_id):
     if report_id.startswith('SC'):
-        mylevel = 0
-    else:
-        mylevel = (len(report_id) - 2) / 2
-    return mylevel
+        return 0
+    return (len(report_id) - 2) // 2  # 使用整数除法
+
+
 def reportpivot(df_dict):
     maindf = df_dict['maindf']
     dimensiondf = df_dict['dimensiondf']
     itemID = df_dict['itemID']
     PitemID = df_dict['PitemID']
     col_pivot = df_dict['pivot_col']
-    row_pivot = df_dict['pivot_row']
     col_filter = df_dict['filter_col']
-    sheet_filter = maindf[col_filter].drop_duplicates().values.tolist()
 
-    for sheetfilter in sheet_filter:
-        filter_maindf = maindf.loc[maindf[col_filter].str.contains(sheetfilter)]
-        pivot_table=filter_maindf.pivot_table(index=[itemID, PitemID], columns=col_pivot, values='值', aggfunc='sum', fill_value=0).reset_index()
-        pivot_table['mr_level'] = pivot_table.apply(calculate_mr_level, axis=1)
+    # 创建一个字典用于存储每个sheetfilter对应的结果DataFrame
+    sheets_result = {}
 
+    # 获取唯一的过滤条件值
+    sheet_filters = maindf[col_filter].drop_duplicates()
+
+    # 对每个过滤条件进行操作
+    for sheetfilter in sheet_filters:
+        filter_maindf = maindf[maindf[col_filter] == sheetfilter]
+        pivot_table = filter_maindf.pivot_table(index=[itemID, PitemID], columns=col_pivot, values='值', aggfunc='sum',
+                                                fill_value=0).reset_index()
+        pivot_table['mr_level'] = pivot_table[itemID].apply(calculate_mr_level)
+
+        # 创建一个新的DataFrame用于存储聚合数据
+        all_agg_data = pd.DataFrame()
+
+        # 获取最大的mr_level
         max_level = int(pivot_table['mr_level'].max())
-        for i in range(max_level,0,-1):
+        for i in range(max_level, 0, -1):
             select_rows = pivot_table[pivot_table['mr_level'] == i]
-            agg_data = select_rows.groupby('父ID').sum().reset_index().drop('管报ID', axis=1)
-            agg_data.rename(columns={'父ID': '管报ID'}, inplace = True)
-            agg_data['父ID'] = agg_data['管报ID'].str[:-2]
-            agg_data['mr_level'] = i-1
-            agg_data.reset_index(inplace=True)
-            agg_data = agg_data[pivot_table.columns]
-            pivot_table = pd.concat([pivot_table,agg_data], ignore_index= True)
+            agg_data = select_rows.groupby(PitemID).sum().reset_index()
+            agg_data[itemID] = agg_data[PitemID]
+            agg_data[PitemID] = agg_data[itemID].str[:-2]
+            agg_data['mr_level'] = i - 1
+            all_agg_data = pd.concat([all_agg_data, agg_data], ignore_index=True)
 
+        # 合并原始透视表和聚合数据
+        pivot_table = pd.concat([pivot_table, all_agg_data], ignore_index=True)
+        final_df = pd.merge(dimensiondf, pivot_table, left_on='mr_code', right_on=itemID, how='left').fillna(0)
 
-        final_df = pd.merge(dimensiondf, pivot_table, left_on='mr_code', right_on='管报ID', how='left').fillna(0)
+        # 将当前过滤条件的结果存储在字典中
+        sheets_result[sheetfilter] = final_df
 
-    # for index, row in final_df.iterrows():
-    #     if row['mr_level'] == max_level - 1:
-    #         parent_code = row['mr_code']
-    #         numeric_subset = final_df[final_df['mr_parentcode'] == parent_code].select_dtypes(include=['number'])
-    #         parent_sum = numeric_subset.sum()
-    #         final_df.loc[index, numeric_subset.columns] = parent_sum
-
-
-        return final_df
-
+    # 返回一个包含所有sheets结果的字典
+    return sheets_result

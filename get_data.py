@@ -66,7 +66,6 @@ def getdata(sqlpassword):
             d_PID = report_config[section]['f_item_PID']
             f_value = report_config[section]['f_value']
             section_found = True
-
             break
 
     if not section_found:
